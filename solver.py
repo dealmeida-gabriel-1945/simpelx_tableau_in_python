@@ -6,19 +6,24 @@ import scipy.optimize as opt
 
 
 def main():
-    # File_Util.get_problems_from_file(sys.argv[1])
-    problems = File_Util.get_problems_from_file(
-        '/home/gabriel/Documents/projects/python/simplex_solver/examples/problemas.txt')
+    problems = None
+    verbose = None
+    if len(sys.argv) <= 1:
+        problems = File_Util.get_problems_from_file(
+            '/home/gabriel/Documents/projects/python/simplex_solver/examples/problemas.txt')
+        verbose = True
+    else:
+        problems = File_Util.get_problems_from_file(sys.argv[1])
+        verbose = Constants.verbose_param in sys.argv
 
     for problem in problems:
-        # problem.normalize()
         result = solver(
             Constants.minimization_inititals if problem.is_minimization else Constants.maximization_inititals,
             np.array(problem.objective_function),
             np.array(problem.get_left_side_restriction_matrix()),
             np.array(problem.get_comparition_restriction_list()),
             np.array(problem.get_right_side_restriction_matrix()),
-            verbose=True
+            verbose=verbose
         )
         print(f'z = {result[0]}')
         for index, value in enumerate(result[1]):

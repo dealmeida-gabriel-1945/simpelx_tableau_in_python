@@ -7,6 +7,8 @@ restrictions_inititals = "RE"
 function_solution_initials = "SF"
 variables_solution_initials = "SV"
 
+verbose_param = '-v'
+
 equals_symbol = '=='
 less_or_equals_symbol = '<='
 greater_or_equals_symbol = '>='
