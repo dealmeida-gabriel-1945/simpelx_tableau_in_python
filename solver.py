@@ -35,12 +35,6 @@ def main():
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
-########################################################################################################################
-########################################################################################################################
-######################### vvvvvvvvvv SIMPLEX vvvvvvvvvv | ^^^^^^^^^ SIMPLEX 2 FASES ^^^^^^^^^ ##########################
-########################################################################################################################
-########################################################################################################################
-
 def normalize_restr_A_simplex(restr_A_original):
     """
     Essa função normaliza uma restrição de sinal <=
@@ -295,6 +289,109 @@ def normalize_f_obj_simplex(objet, f_obj, numero_de_variveis_de_folga):
     return np.array([value * (-1) for value in aux])
 
 
+########################################################################################################################
+########################################################################################################################
+######################### ^^^^^^^^^ SIMPLEX ^^^^^^^^^ | vvvvvvvvvv SIMPLEX 2 FASES vvvvvvvvvv ##########################
+########################################################################################################################
+########################################################################################################################
+
+def normalize_f_obj_simplex_2_fases(
+    restr_A_normalizadas, restr_op, restr_b,
+    quantidade_de_variaveis_original, quantidade_de_variaveis_de_folga, quantidade_de_variaveis_artificiais
+):
+    f_obj = list()
+    f_obj.extend([0] * quantidade_de_variaveis_original)
+    f_obj.extend([0] * quantidade_de_variaveis_de_folga)
+    f_obj.extend([-1] * quantidade_de_variaveis_artificiais)
+    f_obj = np.array(f_obj)
+
+    soma_func_obj = 0
+
+    for index, restricao in enumerate(restr_A_normalizadas):
+        if (restr_op[index] == Constants.equals_symbol) or (restr_op[index] == Constants.greater_or_equals_symbol):
+            f_obj = f_obj + restricao
+            soma_func_obj += restr_b[index]
+
+    return f_obj, soma_func_obj
+
+
+def normalize_f_obj_e_restr_A_simplex_2_fases(f_obj, restr_A, restr_op, restr_b):
+    quantidade_de_variaveis_original = len(f_obj)
+    quantidade_de_variaveis_de_folga = len([
+        op
+        for op in restr_op
+        if (op == Constants.greater_or_equals_symbol) or (op == Constants.less_or_equals_symbol)
+    ])
+    cont_auxiliar_variaveis_de_folga = 0
+    quantidade_de_variaveis_artificiais = len([
+        op
+        for op in restr_op
+        if (op == Constants.equals_symbol) or (op == Constants.greater_or_equals_symbol)
+    ])
+    cont_auxiliar_variaveis_artificiais = 0
+
+    restr_A_normalizadas = list()
+
+    for index, restricao in enumerate(restr_A):
+        restricao = [valor for valor in restricao]
+        restricao.extend([0] * (quantidade_de_variaveis_de_folga + quantidade_de_variaveis_artificiais))
+
+        if restr_op[index] == Constants.greater_or_equals_symbol:
+            restricao[quantidade_de_variaveis_original + cont_auxiliar_variaveis_de_folga] = -1
+            cont_auxiliar_variaveis_de_folga += 1
+        elif restr_op[index] == Constants.less_or_equals_symbol:
+            restricao[quantidade_de_variaveis_original + cont_auxiliar_variaveis_de_folga] = +1
+            cont_auxiliar_variaveis_de_folga += 1
+
+        if (restr_op[index] == Constants.equals_symbol) or (restr_op[index] == Constants.greater_or_equals_symbol):
+            restricao[-(quantidade_de_variaveis_artificiais - cont_auxiliar_variaveis_artificiais)] = 1
+            cont_auxiliar_variaveis_artificiais += 1
+
+        restr_A_normalizadas.append(np.array(restricao))
+
+    restr_A_normalizadas = np.array(restr_A_normalizadas)
+    f_obj_normalizada, soma_f_obj_normalizada = normalize_f_obj_simplex_2_fases(
+        restr_A_normalizadas,
+        restr_op,
+        restr_b,
+        quantidade_de_variaveis_original,
+        quantidade_de_variaveis_de_folga,
+        quantidade_de_variaveis_artificiais
+    )
+
+    return f_obj_normalizada, restr_A_normalizadas, soma_f_obj_normalizada, quantidade_de_variaveis_de_folga
+
+
+def mount_tableau_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b):
+    tableau = list()
+
+    L0 = [soma_f_obj_normalizada]
+    L0.extend(f_obj_normalizada)
+    L0 = np.array(L0)
+    L0 = L0 * (-1)
+    tableau.append(L0)
+
+    for index, restricao in enumerate(restr_A_normalizadas):
+        linha = list()
+        linha.append(restr_b[index])
+        linha.extend(restricao)
+
+        tableau.append(np.array(linha))
+
+    return np.array(tableau)
+
+
+def do_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b,
+                       quantidade_de_variaveis_iniciais, quantidade_de_novas_variaveis, verbose):
+
+    tableau = mount_tableau_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b)
+
+    print(tableau)
+    # TODO continuar criando a lógica
+    # aula https://drive.google.com/file/d/1hl7414irZwULcl4qDA0NxeuMu9MvDhJw/view
+    # minuto 20:00
+
+
 def solver(objet, f_obj, restr_A, restr_op, restr_b, verbose=False):
     """
     Função para solução de problemas de programação linear
@@ -339,20 +436,30 @@ def solver(objet, f_obj, restr_A, restr_op, restr_b, verbose=False):
 
     # Verificação se o problema é simplex ou simplex 2 fases
     is_simplex_base = all([op == Constants.less_or_equals_symbol for op in restr_op])
+    quantidade_de_variaveis_iniciais = len(f_obj)
 
     if is_simplex_base:
-        quantidade_de_variaveis = len(f_obj)
         quantidade_de_variaveis_de_folga = len(restr_A)
         return do_simplex(
             normalize_f_obj_simplex(objet, f_obj, quantidade_de_variaveis_de_folga),
             normalize_restr_A_simplex(restr_A),
             restr_b,
-            quantidade_de_variaveis,
+            quantidade_de_variaveis_iniciais,
             quantidade_de_variaveis_de_folga,
             verbose
         )
     else:
-        print('SIMPLEX 2 FASES')
+        f_obj_normalizada, restr_A_normalizadas, soma_f_obj_normalizada, quantidade_de_novas_variaveis = \
+            normalize_f_obj_e_restr_A_simplex_2_fases(f_obj, restr_A, restr_op, restr_b)
+        return do_simplex_2_fases(
+            f_obj_normalizada,
+            soma_f_obj_normalizada,
+            restr_A_normalizadas,
+            restr_b,
+            quantidade_de_variaveis_iniciais,
+            quantidade_de_novas_variaveis,
+            verbose
+        )
 
 
 if __name__ == '__main__':
