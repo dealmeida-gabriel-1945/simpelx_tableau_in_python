@@ -30,7 +30,7 @@ def main():
             np.array(problem.get_right_side_restriction_matrix()),
             verbose=verbose
         )
-        for index, value in enumerate(result[1]):
+        for index, value in enumerate(result):
             print(f'x{index + 1} = {value}')
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
