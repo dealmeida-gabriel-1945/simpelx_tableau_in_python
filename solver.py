@@ -209,7 +209,7 @@ def escalona_resto_da_matriz(tableau, linha_a_ser_escalonada_original, index_lin
         )
 
 
-def monta_vetor_de_retorno(tableau, resultado_dicionario, quantidade_de_variaveis):
+def monta_vetor_de_retorno_simplex(tableau, resultado_dicionario, quantidade_de_variaveis):
     """
     Essa função monta o vetor de retorno quando o problema simplex foi resolvido
     :param tableau: np.array() matriz contendo todos os valores do problema simplex
@@ -271,7 +271,7 @@ def do_simplex(f_obj, restr_A, restr_b, quantidade_de_variaveis, quantidade_de_v
 
         do_verbose(verbose, tableau)
 
-    return monta_vetor_de_retorno(tableau, resultado_dicionario, quantidade_de_variaveis)
+    return monta_vetor_de_retorno_simplex(tableau, resultado_dicionario, quantidade_de_variaveis)
 
 
 def normalize_f_obj_simplex(objet, f_obj, numero_de_variveis_de_folga):
@@ -486,6 +486,19 @@ def calcula_ultimo_escalonamento(tableau_2a_fase, f_obj):
     return tableau_copia
 
 
+def monta_vetor_de_retorno_simplex_2_fases(tableau_2a_fase, resultado_dicionario, quantidade_de_variaveis_base):
+    vetor_resultado = list()
+    variaveis_nao_nulas = [x for x in resultado_dicionario.values()]
+    for x in range(1, quantidade_de_variaveis_base + 1):
+        if x in variaveis_nao_nulas:
+            index_linha = variaveis_nao_nulas.index(x) + 1
+            vetor_resultado.append(tableau_2a_fase[index_linha][0])
+        else:
+            vetor_resultado.append(0)
+
+    return vetor_resultado
+
+
 def do_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b,
                        quantidade_de_variaveis_iniciais, quantidade_de_novas_variaveis,
                        quantidade_de_variaveis_artificiais, verbose):
@@ -512,6 +525,7 @@ def do_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normal
     do_verbose(verbose, tableau_2a_fase)
     tableau_2a_fase = calcula_ultimo_escalonamento(tableau_2a_fase, f_obj_normalizada[:len(tableau_2a_fase) + 1])
     # TODO verificar dicionario resposta e retornar o vetor correto
+    return monta_vetor_de_retorno_simplex_2_fases(tableau_2a_fase, resultado_dicionario, quantidade_de_variaveis_base)
 
 
 def solver(objet, f_obj, restr_A, restr_op, restr_b, verbose=False):
