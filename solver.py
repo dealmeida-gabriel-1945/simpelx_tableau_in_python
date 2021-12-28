@@ -86,7 +86,7 @@ def linha_possui_negativo(valores_base):
     :return: bool, True -> possui valor negativo; False -> não possui valor negativo
     """
     for value in valores_base:
-        if value < 0:
+        if round(value, 4) < 0:
             return True
     return False
 
@@ -296,8 +296,8 @@ def normalize_f_obj_simplex(objet, f_obj, numero_de_variveis_de_folga):
 ########################################################################################################################
 
 def normalize_f_obj_simplex_2_fases(
-    restr_A_normalizadas, restr_op, restr_b,
-    quantidade_de_variaveis_original, quantidade_de_variaveis_de_folga, quantidade_de_variaveis_artificiais
+        restr_A_normalizadas, restr_op, restr_b,
+        quantidade_de_variaveis_original, quantidade_de_variaveis_de_folga, quantidade_de_variaveis_artificiais
 ):
     f_obj = list()
     f_obj.extend([0] * quantidade_de_variaveis_original)
@@ -330,9 +330,35 @@ def normalize_f_obj_e_restr_A_simplex_2_fases(f_obj, restr_A, restr_op, restr_b)
     ])
     cont_auxiliar_variaveis_artificiais = 0
 
-    restr_A_normalizadas = list()
+    restr_A_ordenada = list()
+    restr_b_ordenada = list()
+    restr_op_ordenada = list()
+
+    auxiliar_as_restr_A_ordenada = list()
+    auxiliar_as_restr_b_ordenada = list()
+    auxiliar_as_restr_op_ordenada = list()
 
     for index, restricao in enumerate(restr_A):
+        if (restr_op[index] == Constants.equals_symbol) or (restr_op[index] == Constants.greater_or_equals_symbol):
+            restr_A_ordenada.append(restricao)
+            restr_b_ordenada.append(restr_b[index])
+            restr_op_ordenada.append(restr_op[index])
+        else:
+            auxiliar_as_restr_A_ordenada.append(restricao)
+            auxiliar_as_restr_b_ordenada.append(restr_b[index])
+            auxiliar_as_restr_op_ordenada.append(restr_op[index])
+    restr_A_ordenada.extend(auxiliar_as_restr_A_ordenada)
+    restr_A_ordenada = np.array(restr_A_ordenada)
+
+    restr_b_ordenada.extend(auxiliar_as_restr_b_ordenada)
+    restr_b_ordenada = np.array(restr_b_ordenada)
+
+    restr_op_ordenada.extend(auxiliar_as_restr_op_ordenada)
+    restr_op_ordenada = np.array(restr_op_ordenada)
+
+    restr_A_normalizadas = list()
+
+    for index, restricao in enumerate(restr_A_ordenada):
         restricao = [valor for valor in restricao]
         restricao.extend([0] * (quantidade_de_variaveis_de_folga + quantidade_de_variaveis_artificiais))
 
@@ -352,14 +378,19 @@ def normalize_f_obj_e_restr_A_simplex_2_fases(f_obj, restr_A, restr_op, restr_b)
     restr_A_normalizadas = np.array(restr_A_normalizadas)
     f_obj_normalizada, soma_f_obj_normalizada = normalize_f_obj_simplex_2_fases(
         restr_A_normalizadas,
-        restr_op,
-        restr_b,
+        restr_op_ordenada,
+        restr_b_ordenada,
         quantidade_de_variaveis_original,
         quantidade_de_variaveis_de_folga,
         quantidade_de_variaveis_artificiais
     )
 
-    return f_obj_normalizada, restr_A_normalizadas, soma_f_obj_normalizada, quantidade_de_variaveis_de_folga
+    return f_obj_normalizada, \
+           restr_A_normalizadas, \
+           restr_b_ordenada, \
+           soma_f_obj_normalizada, \
+           quantidade_de_variaveis_de_folga, \
+           quantidade_de_variaveis_artificiais
 
 
 def mount_tableau_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b):
@@ -381,15 +412,106 @@ def mount_tableau_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, res
     return np.array(tableau)
 
 
+def remove_variaveis_artificiais(tableau, quantidade_de_variaveis_artificiais):
+    novo_tableau = []
+    for index, linha_original in enumerate(tableau):
+        linha_copia = [valor for valor in linha_original]
+        for vez in range(quantidade_de_variaveis_artificiais):
+            linha_copia.pop()
+        novo_tableau.append(np.array(linha_copia))
+
+    return np.array(novo_tableau)
+
+
+def monta_resultado_dicionario(tableau, quantidade_de_variaveis_artificiais):
+    resultado_dicionario = {}
+    cont_quantidade_de_variaveis_artificiais = 0
+    indexes_ja_alocados = []
+    f_obj_copia = [valor for valor in tableau[0]]
+    f_obj_copia.reverse()
+
+    for index, linha in enumerate(tableau):
+        if index == 0:
+            continue
+
+        if cont_quantidade_de_variaveis_artificiais == quantidade_de_variaveis_artificiais:
+            for index_coluna, valor_coluna in enumerate(f_obj_copia):
+                if index_coluna < quantidade_de_variaveis_artificiais:
+                    continue
+                if index_coluna == 0:
+                    break
+                if valor_coluna == 0:
+                    resultado_dicionario[index] = len(f_obj_copia) - index_coluna - 1
+
+        else:
+            index_selecionado = len(tableau[0]) - (
+                quantidade_de_variaveis_artificiais - cont_quantidade_de_variaveis_artificiais
+            )
+            resultado_dicionario[index] = index_selecionado
+            indexes_ja_alocados.append(index_selecionado)
+            cont_quantidade_de_variaveis_artificiais += 1
+
+    return resultado_dicionario
+
+
+def copia_tableau(tableau_2a_fase):
+    tableau_copia = []
+    for linha in tableau_2a_fase:
+        tableau_copia.append(np.array([valor for valor in linha]))
+    return np.array(tableau_copia)
+
+
+def calcula_ultimo_escalonamento(tableau_2a_fase, f_obj):
+    f_obj_copia = [valor for valor in f_obj]
+    f_obj_copia.extend([0] * (len(tableau_2a_fase[0]) - len(f_obj)))
+    tableau_copia = copia_tableau(tableau_2a_fase)
+    tableau_copia[0] = tableau_copia[0] * 0
+    tableau_copia[0] = tableau_copia[0] + np.array(f_obj_copia)
+
+    indexes_para_zerar = []
+    for index, valor in enumerate(f_obj[1:]):
+        if valor != 0:
+            indexes_para_zerar.append(index + 1)
+
+    for index_para_zerar in indexes_para_zerar:
+        index_linha = 1
+        while tableau_copia[index_linha][index_para_zerar] == 0:
+            index_linha += 1
+
+        sinal = -1
+
+        tableau_copia[0] = tableau_copia[0] + (
+                (tableau_copia[0][index_para_zerar] * tableau_copia[index_linha]) * sinal
+        )
+    return tableau_copia
+
+
 def do_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b,
-                       quantidade_de_variaveis_iniciais, quantidade_de_novas_variaveis, verbose):
-
+                       quantidade_de_variaveis_iniciais, quantidade_de_novas_variaveis,
+                       quantidade_de_variaveis_artificiais, verbose):
     tableau = mount_tableau_simplex_2_fases(f_obj_normalizada, soma_f_obj_normalizada, restr_A_normalizadas, restr_b)
+    quantidade_de_variaveis_base = len([valor for valor in tableau[0][1:] if valor != 0])
+    resultado_dicionario = monta_resultado_dicionario(tableau, quantidade_de_variaveis_artificiais)
 
-    print(tableau)
-    # TODO continuar criando a lógica
-    # aula https://drive.google.com/file/d/1hl7414irZwULcl4qDA0NxeuMu9MvDhJw/view
-    # minuto 20:00
+    do_verbose(verbose, tableau)
+
+    # PRIMEIRA FASE DO TABLEAU
+    while linha_possui_negativo(tableau[0]):
+        index_coluna_pivo = get_index_com_menor_valor(tableau[0][1:]) + 1
+        index_linha = get_index_linha(tableau, index_coluna_pivo) + 1
+
+        resultado_dicionario[index_linha] = index_coluna_pivo
+
+        escalona_linha(tableau, index_linha, index_coluna_pivo)
+        escalona_resto_da_matriz(tableau, tableau[index_linha], index_linha, index_coluna_pivo)
+
+        do_verbose(verbose, tableau)
+
+    # SEGUNDA FASE DO PLATEAU
+    tableau_2a_fase = remove_variaveis_artificiais(tableau, quantidade_de_variaveis_artificiais)
+    do_verbose(verbose, tableau_2a_fase)
+    tableau_2a_fase = calcula_ultimo_escalonamento(tableau_2a_fase, f_obj_normalizada[:len(tableau_2a_fase) + 1])
+    # TODO verificar dicionario resposta e retornar o vetor correto
 
 
 def solver(objet, f_obj, restr_A, restr_op, restr_b, verbose=False):
@@ -449,15 +571,17 @@ def solver(objet, f_obj, restr_A, restr_op, restr_b, verbose=False):
             verbose
         )
     else:
-        f_obj_normalizada, restr_A_normalizadas, soma_f_obj_normalizada, quantidade_de_novas_variaveis = \
+        f_obj_normalizada, restr_A_normalizadas, restr_b_ordenada, soma_f_obj_normalizada,\
+        quantidade_de_novas_variaveis, quantidade_de_variaveis_artificiais = \
             normalize_f_obj_e_restr_A_simplex_2_fases(f_obj, restr_A, restr_op, restr_b)
         return do_simplex_2_fases(
             f_obj_normalizada,
             soma_f_obj_normalizada,
             restr_A_normalizadas,
-            restr_b,
+            restr_b_ordenada,
             quantidade_de_variaveis_iniciais,
             quantidade_de_novas_variaveis,
+            quantidade_de_variaveis_artificiais,
             verbose
         )
 
