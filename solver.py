@@ -6,6 +6,11 @@ import scipy.optimize as opt
 
 
 def main():
+    """
+    Esse método é o main, ele apenas chama os métodos de leitura do arquivo e de resolução dos problemas, passando os
+    parâmetros corretos de acordo com o modo de execução (por terminal ou por execução pela ide pycharm)
+    :return: void
+    """
     problems = None
     verbose = None
     if len(sys.argv) <= 1:
@@ -25,13 +30,23 @@ def main():
             np.array(problem.get_right_side_restriction_matrix()),
             verbose=verbose
         )
-        print(f'z = {result[0]}')
         for index, value in enumerate(result[1]):
             print(f'x{index + 1} = {value}')
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
 
+########################################################################################################################
+########################################################################################################################
+######################### vvvvvvvvvv SIMPLEX vvvvvvvvvv | ^^^^^^^^^ SIMPLEX 2 FASES ^^^^^^^^^ ##########################
+########################################################################################################################
+########################################################################################################################
+
 def normalize_restr_A_simplex(restr_A_original):
+    """
+    Essa função normaliza uma restrição de sinal <=
+    :param restr_A_original: np.array() contendo os valores que "acompanham" cada x da restrição
+    :return: np.array() contendo a restrição normalizada
+    """
     restr_A = list()
 
     i = 0
@@ -46,7 +61,14 @@ def normalize_restr_A_simplex(restr_A_original):
     return np.array(restr_A)
 
 
-def mount_tableau(f_obj, restr_A, restr_b):
+def mount_tableau_simplex(f_obj, restr_A, restr_b):
+    """
+    Essa função monta a matrix tableau
+    :param f_obj: np.array() contendo a função objetivo normalizada
+    :param restr_A: np.array() contendo cada restrição normalizada
+    :param restr_b: np.array() contendo o lado direito de cada restrição
+    :return: np.array() contendo cada uma das linhas da tabela tableau
+    """
     linhas = list()
     L0 = list()
     L0.append(0)
@@ -64,6 +86,11 @@ def mount_tableau(f_obj, restr_A, restr_b):
 
 
 def linha_possui_negativo(valores_base):
+    """
+    Essa função verifica se há valores negativos no vetor passado
+    :param valores_base: vetor que contém os valores a serem analisados
+    :return: bool, True -> possui valor negativo; False -> não possui valor negativo
+    """
     for value in valores_base:
         if value < 0:
             return True
@@ -71,6 +98,12 @@ def linha_possui_negativo(valores_base):
 
 
 def get_index_com_menor_valor(valores_base, nao_negativo=False):
+    """
+    Pega o index com o menor valor, podendo ele ser menor negativo ou não
+    :param valores_base: np.array() contendo os valores a serem analisados
+    :param nao_negativo: bool, flag para permitir a análise de números negativo ou não (True/False)
+    :return: long, index do menor valor no parâmetro "valores_base"
+    """
     menor_valor = None
     index_menor_valor = None
     for index, valor in enumerate(valores_base):
@@ -91,6 +124,13 @@ def get_index_com_menor_valor(valores_base, nao_negativo=False):
 
 
 def get_index_linha(tableau, index_coluna_pivo):
+    """
+    Esse método realiza o processo de verificação de qual linha do tableau deverá ser utilizada juntamente com a coluna
+    pivô
+    :param tableau: np.array() matriz contendo todos os valores do problema simplex
+    :param index_coluna_pivo: long, valor do index da coluna pivô
+    :return: long index da linha do tableau deverá ser utilizada juntamente com a coluna pivô
+    """
     resultado_divisoes = list()
     index_linha = 1
     while index_linha < len(tableau):
@@ -101,6 +141,9 @@ def get_index_linha(tableau, index_coluna_pivo):
         resultado_divisoes.append(divisao)
         index_linha += 1
 
+    # Às vezes pode ocorre de que tableau[index_linha][index_coluna_pivo] adiquira um valor nulo (0)
+    # quando isso acontecer, em vez de colocar zero no vetor de resultados das divisões, colocarmos '#'
+    # para posteriormente trocá-los pela (soma + 100) do módulo de todos os outros valores
     soma = 0
     for valor in resultado_divisoes:
         if valor != Constants.comment_char:
@@ -108,16 +151,30 @@ def get_index_linha(tableau, index_coluna_pivo):
 
     for index, valor in enumerate(resultado_divisoes):
         if valor == Constants.comment_char:
-            resultado_divisoes[index] = soma
+            resultado_divisoes[index] = soma + 100
 
     return get_index_com_menor_valor(resultado_divisoes, nao_negativo=True)
 
 
 def escalona_linha(tableau, index_linha, index_coluna_pivo):
+    """
+    Esse método divide toda a linha pelo elemento pivô
+    :param tableau: np.array() matriz contendo todos os valores do problema simplex
+    :param index_linha: long, valor do index da linha a ser dividida
+    :param index_coluna_pivo: long, valor do index da coluna pivô
+    :return: void
+    """
     tableau[index_linha] = tableau[index_linha] / tableau[index_linha][index_coluna_pivo]
 
 
 def pega_proxima_linha_a_ter_coluna_anulada(tableau, index_linha, index_coluna_pivo):
+    """
+    Retornao index da proxima linha que, na coluna "index_coluna_pivo", não possui um valor igual a 0
+    :param tableau: np.array() matriz contendo todos os valores do problema simplex
+    :param index_linha: long, valor do index da linha a ser ignorada
+    :param index_coluna_pivo: long, valor do index da coluna pivô
+    :return: long -> quando há mais linhas a serem trabalhadas; None -> quando não há mais linhas a serem trabalhadas
+    """
     i = 0
     while i < len(tableau):
         if (i != index_linha) and (tableau[i][index_coluna_pivo] != 0):
@@ -127,11 +184,19 @@ def pega_proxima_linha_a_ter_coluna_anulada(tableau, index_linha, index_coluna_p
 
 
 def escalona_resto_da_matriz(tableau, linha_a_ser_escalonada_original, index_linha, index_coluna_pivo):
+    """
+    Essa função pega a proxima linha que, na coluna "index_coluna_pivo", não possui um valor igual a 0 e o faz tornar
+    zero
+    :param tableau: np.array() matriz contendo todos os valores do problema simplex
+    :param linha_a_ser_escalonada_original:
+    :param index_linha: long, valor do index da linha a ser ignorada
+    :param index_coluna_pivo: long, valor do index da coluna pivô
+    :return: void
+    """
     index_proxima_linha_a_anular_coluna = pega_proxima_linha_a_ter_coluna_anulada(
         tableau, index_linha, index_coluna_pivo
     )
     while index_proxima_linha_a_anular_coluna is not None:
-
         linha_a_ser_mudada = tableau[index_proxima_linha_a_anular_coluna]
 
         valor_1 = linha_a_ser_escalonada_original[index_coluna_pivo]
@@ -140,10 +205,10 @@ def escalona_resto_da_matriz(tableau, linha_a_ser_escalonada_original, index_lin
         valor_2 *= -1
 
         tableau[index_proxima_linha_a_anular_coluna] = (
-           linha_a_ser_escalonada_original * valor_2
-        ) + (
-           linha_a_ser_mudada * valor_1
-        )
+                                                               linha_a_ser_escalonada_original * valor_2
+                                                       ) + (
+                                                               linha_a_ser_mudada * valor_1
+                                                       )
 
         index_proxima_linha_a_anular_coluna = pega_proxima_linha_a_ter_coluna_anulada(
             tableau, index_linha, index_coluna_pivo
@@ -151,6 +216,14 @@ def escalona_resto_da_matriz(tableau, linha_a_ser_escalonada_original, index_lin
 
 
 def monta_vetor_de_retorno(tableau, resultado_dicionario, quantidade_de_variaveis):
+    """
+    Essa função monta o vetor de retorno quando o problema simplex foi resolvido
+    :param tableau: np.array() matriz contendo todos os valores do problema simplex
+    :param resultado_dicionario: dicionário com as chaves equivalentes a ordem do x (x1 -> 1; x2 -> 2; x3 -> 2; etc...)
+    e os valores equivalente às linhas que eles "estão"
+    :param quantidade_de_variaveis_de_folga: long quantidade de variáveis de folga criadas para o problema
+    :return: np.array() a posição 0 é o valor de Z, a segunda é um np.array() contendo o valor de cada variável
+    """
     cont = 1
     resultados = list()
     while cont <= quantidade_de_variaveis:
@@ -159,17 +232,34 @@ def monta_vetor_de_retorno(tableau, resultado_dicionario, quantidade_de_variavei
         else:
             resultados.append(0)
         cont += 1
-    return [tableau[0][0], resultados]
+    return np.array(resultados)
 
 
 def do_verbose(verbose, tableau):
+    """
+    Essa função realiza o verbose
+    :param verbose: flag para realizar o verbose ou não
+    :param tableau: np.array() matriz contendo todos os valores do problema simplex
+    :return: void
+    """
     if verbose:
         print(tableau)
 
 
 def do_simplex(f_obj, restr_A, restr_b, quantidade_de_variaveis, quantidade_de_variaveis_de_folga, verbose=False):
+    """
+    Essa função realiza o processo de resolução do problem de simplex
+
+    :param f_obj: np.array() que contém os valores que "acompanham" cada x na função objetivo
+    :param restr_A: np.array() que contém os vetores que contêm os valores que "acompanham" cada x das restrições
+    :param restr_b: np.array() que contém os valores que do lado direito de cada restrição
+    :param quantidade_de_variaveis: long quantidade de variáveis normais que a função objetivo possui
+    :param quantidade_de_variaveis_de_folga: long quantidade de variáveis de folga criadas para o problema
+    :param verbose: bool flag para informar se haverá verbose ou não
+    :return: np.array() contendo o valor de cada variável
+    """
     resultado_dicionario = {}
-    tableau = mount_tableau(f_obj, restr_A, restr_b)
+    tableau = mount_tableau_simplex(f_obj, restr_A, restr_b)
     valores_base = tableau[0][1:quantidade_de_variaveis_de_folga + 1]
 
     do_verbose(verbose, tableau)
@@ -190,9 +280,16 @@ def do_simplex(f_obj, restr_A, restr_b, quantidade_de_variaveis, quantidade_de_v
     return monta_vetor_de_retorno(tableau, resultado_dicionario, quantidade_de_variaveis)
 
 
-def normalize_f_obj_simplex(objet, f_obj, number_of_loose):
+def normalize_f_obj_simplex(objet, f_obj, numero_de_variveis_de_folga):
+    """
+    Essa função normaliza a função objetivo para resolver o simplex
+    :param objet: String 'MA' ou 'MI'
+    :param f_obj: np.array() função objetivo
+    :param numero_de_variveis_de_folga: quantidade de variáveis de folga necessárias
+    :return: np.array() cotendo a função objetivo normalizada
+    """
     aux = [value for value in f_obj]
-    aux.extend([0] * number_of_loose)
+    aux.extend([0] * numero_de_variveis_de_folga)
     if objet == Constants.maximization_inititals:
         return np.array(aux)
     return np.array([value * (-1) for value in aux])
@@ -240,10 +337,12 @@ def solver(objet, f_obj, restr_A, restr_op, restr_b, verbose=False):
     ##
     #################################################################
 
+    # Verificação se o problema é simplex ou simplex 2 fases
     is_simplex_base = all([op == Constants.less_or_equals_symbol for op in restr_op])
-    quantidade_de_variaveis = len(f_obj)
-    quantidade_de_variaveis_de_folga = len(restr_A)
+
     if is_simplex_base:
+        quantidade_de_variaveis = len(f_obj)
+        quantidade_de_variaveis_de_folga = len(restr_A)
         return do_simplex(
             normalize_f_obj_simplex(objet, f_obj, quantidade_de_variaveis_de_folga),
             normalize_restr_A_simplex(restr_A),
