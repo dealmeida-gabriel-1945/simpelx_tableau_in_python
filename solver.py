@@ -15,20 +15,20 @@ def main():
     problems = None
     verbose = None
     if len(sys.argv) <= 1:
-        problems = File_Util.get_problems_from_file(
+        problems = File_Util.retorn_problemas_do_arquivo(
             '/home/gabriel/Documents/projects/python/simplex_solver/examples/problemas.txt')
         verbose = True
     else:
-        problems = File_Util.get_problems_from_file(sys.argv[1])
+        problems = File_Util.retorn_problemas_do_arquivo(sys.argv[1])
         verbose = Constants.verbose_param in sys.argv
 
     for problem in problems:
         result = solver(
             Constants.minimization_inititals if problem.is_minimization else Constants.maximization_inititals,
             np.array(problem.objective_function),
-            np.array(problem.get_left_side_restriction_matrix()),
-            np.array(problem.get_comparition_restriction_list()),
-            np.array(problem.get_right_side_restriction_matrix()),
+            np.array(problem.retorna_vetor_A_das_restricoes()),
+            np.array(problem.retorn_operacao_das_restricoes()),
+            np.array(problem.retorna_vetor_b_das_restricoes()),
             verbose=verbose
         )
         for index, value in enumerate(result):

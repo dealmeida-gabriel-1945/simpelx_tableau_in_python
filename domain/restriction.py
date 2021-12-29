@@ -1,5 +1,9 @@
 import util.constants as Constants
 
+"""
+Essa classe representa cada uma das restrições de cada um dos problemas
+"""
+
 
 class Restriction:
     def __init__(self):

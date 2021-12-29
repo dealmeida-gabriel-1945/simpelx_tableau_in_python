@@ -1,3 +1,7 @@
+"""
+Esse arquivo armazena as constantes, ou variáveis globais, que serão utilizados ao longo do código
+"""
+
 comment_char = "#"
 space_char = " "
 
