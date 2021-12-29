@@ -3,8 +3,11 @@
 # IFMG - campus Formiga
 # Trabalho de Pesquisa Operacional
 ## Resolução de problemas com Simplex e Simplex 2 fases
+
 ####**Professor:** Felipe Augusto Lima Reis
+
 ####**Aluno:** Gabriel Guimarães de Almeida
+
 ####**Data de conclusão:** 28/12/2021
 
 ------------------------------------------------------------

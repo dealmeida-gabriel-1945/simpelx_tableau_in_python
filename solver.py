@@ -1,8 +1,9 @@
-import util.constants as Constants
-import numpy as np
 import sys
+
+import numpy as np
+
+import util.constants as Constants
 import util.file_util as File_Util
-import scipy.optimize as opt
 
 
 def main():
